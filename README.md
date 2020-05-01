@@ -24,7 +24,7 @@ PMJ ↓
 ![img](notes/note_pmj.png)
 
 ## Tips
-- It'd be better to use integer for sample on PMJ implementation. Because the occupied stratum checking must be strict.
+- It'd be better to use integer for sample on PMJ implementation. Because the occupied stratum checking must be strict. Sometimes I have faced infinity loop at the occupied rejection logic. 
 
 ## references 
 Per Christensen, Andrew Kensler, Charlie Kilpatrick, "Progressive Multi-Jittered Sample Sequences"
