@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <functional>
+#include <algorithm>
 
 template <int C>
 int nextPowerOf(int M)
@@ -86,11 +87,15 @@ private:
             glm::vec2 oldpt = samples[s];
             int i = n * oldpt.x;
             int j = n * oldpt.y;
+            i = glm::clamp(i, 0, n - 1);
+            j = glm::clamp(j, 0, n - 1);
 
             // (n * oldpt.x - i), (n * oldpt.y - j) : [0, 1) value, normalized coordinates against parent cell
             // 2.0f * (n * oldpt.x - i), 2.0f * (n * oldpt.y - j) : [0, 2) value. these indicates children cell index
             int xhalf = 2.0f * (n * oldpt.x - i);
             int yhalf = 2.0f * (n * oldpt.y - j);
+            xhalf = glm::clamp(xhalf, 0, 1);
+            yhalf = glm::clamp(yhalf, 0, 1);
 
             /* choose a diagonal child cell
             +-+-+
