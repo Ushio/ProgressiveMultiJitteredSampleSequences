@@ -72,7 +72,7 @@ public:
     {
         _samples.clear();
     }
-    const glm::vec2* samples() const 
+    const glm::ivec2* samples() const
     {
         return _samples.data();
     }
@@ -104,6 +104,10 @@ public:
             N = N * 4;
         }
     }
+    glm::vec2 to01(glm::ivec2 s) const
+    {
+        return glm::vec2(s) / glm::vec2(RANDOM_LENGTH);
+    }
 private:
     /*
         i, j : cell index
@@ -117,35 +121,37 @@ private:
         |(xhalf=0, yhalf=0)|(xhalf=1, yhalf=1)|
         +------------------+------------------+
     */
-    static glm::vec2 generateSamplePoint(int i, int j, int xhalf, int yhalf, int n, pr::IRandomNumberGenerator& random)
+    static glm::ivec2 generateSamplePoint(int i, int j, int xhalf, int yhalf, int n, pr::IRandomNumberGenerator& random)
     {
+        int squareLength = (RANDOM_LENGTH / n);
+        int halfSquareLength = squareLength / 2;
+        int x = i * squareLength + xhalf * halfSquareLength + (random.uniformi() % halfSquareLength);
+        int y = j * squareLength + yhalf * halfSquareLength + (random.uniformi() % halfSquareLength);
         return {
-            (i + 0.5f * (xhalf + random.uniformf())) / n,
-            (j + 0.5f * (yhalf + random.uniformf())) / n,
+            x,
+            y,
         };
     }
 
     // N: generated sample count
     // samples: sample sequence
-    static void extendSequence(int N, std::vector<glm::vec2> &samples, pr::IRandomNumberGenerator &random)
+    static void extendSequence(int N, std::vector<glm::ivec2> &samples, pr::IRandomNumberGenerator &random)
     {
         // number of rows, cols
         // n = 1, 2, 4, 8, 16
         int n = sqrt(N);
         for (int s = 0; s < N; ++s)
         {
-            glm::vec2 oldpt = samples[s];
-            int i = n * oldpt.x;
-            int j = n * oldpt.y;
-            i = glm::clamp(i, 0, n - 1);
-            j = glm::clamp(j, 0, n - 1);
+            glm::ivec2 oldpt = samples[s];
+            int squareLength = (RANDOM_LENGTH / n);
+            int i = oldpt.x / squareLength;
+            int j = oldpt.y / squareLength;
+            int i_mod = oldpt.x % squareLength;
+            int j_mod = oldpt.y % squareLength;
 
-            // (n * oldpt.x - i), (n * oldpt.y - j) : [0, 1) value, normalized coordinates against parent cell
-            // 2.0f * (n * oldpt.x - i), 2.0f * (n * oldpt.y - j) : [0, 2) value. these indicates children cell index
-            int xhalf = 2.0f * (n * oldpt.x - i);
-            int yhalf = 2.0f * (n * oldpt.y - j);
-            xhalf = glm::clamp(xhalf, 0, 1);
-            yhalf = glm::clamp(yhalf, 0, 1);
+            // local sub-square index
+            int xhalf = i_mod < (squareLength / 2) ? 0 : 1;
+            int yhalf = j_mod < (squareLength / 2) ? 0 : 1;
 
             /* choose a diagonal child cell
             +-+-+
@@ -187,7 +193,7 @@ private:
 private:
     uint32_t _seed = 1;
     pr::Xoshiro128StarStar _random;
-    std::vector<glm::vec2> _samples;
+    std::vector<glm::ivec2> _samples;
 };
 
 class PMJSequence
@@ -285,7 +291,7 @@ private:
         int x;
         for (;;)
         {
-            x = i * squareLength + xhalf * halfSquareLength + random.uniformi() % halfSquareLength;
+            x = i * squareLength + xhalf * halfSquareLength + (random.uniformi() % halfSquareLength);
             int xstratum_index = x / stratumLength;
             if (xstratum[xstratum_index] == false)
             {
@@ -297,7 +303,7 @@ private:
         int y;
         for (;;)
         {
-            y = j * squareLength + yhalf * halfSquareLength + random.uniformi() % halfSquareLength;
+            y = j * squareLength + yhalf * halfSquareLength + (random.uniformi() % halfSquareLength);
             int ystratum_index = y / stratumLength;
             if (ystratum[ystratum_index] == false)
             {
@@ -440,7 +446,7 @@ int main() {
     const int numberOfSample = 8096;
 
     int seed = 1;
-    bool moveSeed = false;
+    bool autoIncrementSeed = false;
     int drawCount = 128;
     int sampleMode = SAMPLES_PJ;
     int pixelsize = 3;
@@ -481,20 +487,20 @@ int main() {
             sampleMode = std::max(sampleMode - 1, 0);
         }
 
-        //bool seed_update = false;
-        //if (IsKeyDown(KEY_RIGHT))
-        //{
-        //    seed += 1;
-        //    seed_update = true;
-        //}
-        //if (IsKeyDown(KEY_LEFT))
-        //{
-        //    seed -= 1;
-        //    seed_update = true;
-        //}
-
         bool seed_update = false;
-        if (moveSeed)
+
+        if (IsKeyDown(KEY_RIGHT))
+        {
+            seed += 1;
+            seed_update = true;
+        }
+        if (IsKeyDown(KEY_LEFT))
+        {
+            seed -= 1;
+            seed_update = true;
+        }
+
+        if (autoIncrementSeed)
         {
             seed += 1;
             seed_update = true;
@@ -522,10 +528,12 @@ int main() {
                 x = random.samples()[i].x;
                 y = random.samples()[i].y;
                 break;
-            case SAMPLES_PJ:
-                x = pj.samples()[i].x;
-                y = pj.samples()[i].y;
+            case SAMPLES_PJ: {
+                glm::vec2 p = pj.to01(pj.samples()[i]);
+                x = p.x;
+                y = p.y;
                 break;
+            }
             case SAMPLES_PMJ: {
                 glm::vec2 p = pmj.to01(pmj.samples()[i]);
                 x = p.x;
@@ -572,7 +580,7 @@ int main() {
             pmj.clear();
             pmj.extend(numberOfSample);
         }
-        ImGui::Checkbox("moveSeed", &moveSeed);
+        ImGui::Checkbox("auto increment seed", &autoIncrementSeed);
         ImGui::SliderInt("pixel size", &pixelsize, 0, 5);
         ImGui::SliderInt("draw count", &drawCount, 0, numberOfSample);
         ImGui::Combo("Sample Mode", &sampleMode, Samples, IM_ARRAYSIZE(Samples));
