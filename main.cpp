@@ -87,6 +87,8 @@ public:
         if (N == 0)
         {
             _random = decltype(_random)(_seed);
+			_shuffuleEngine = std::mt19937(_seed);
+
             _samples.emplace_back(
                 _random.uniformf(),
                 _random.uniformf()
@@ -101,6 +103,9 @@ public:
         {
             extendSequence(N, _samples, _random);
             // printf("generated: %d -> %d\n", N, N * 4);
+			// Important for avoiding dim correlation
+			std::shuffle(_samples.data() + N, _samples.data() + N * 4, _shuffuleEngine);
+
             N = N * 4;
         }
     }
@@ -193,6 +198,7 @@ private:
 private:
     uint32_t _seed = 1;
     pr::Xoshiro128StarStar _random;
+	std::mt19937 _shuffuleEngine;
     std::vector<glm::ivec2> _samples;
 };
 
@@ -230,6 +236,7 @@ public:
         if (N == 0)
         {
             _random = decltype(_random)(_seed);
+			_shuffuleEngine = std::mt19937(_seed);
             _samples.emplace_back(
                 _random.uniformi() % RANDOM_LENGTH,
                 _random.uniformi() % RANDOM_LENGTH
@@ -254,6 +261,9 @@ public:
             // check whether stratums are filled.
             // PR_ASSERT(std::all_of(xstratum.begin(), xstratum.end(), [](bool b) { return b; }), "");
             // PR_ASSERT(std::all_of(ystratum.begin(), ystratum.end(), [](bool b) { return b; }), "");
+
+			// Important for avoiding dim correlation
+			std::shuffle(_samples.data() + N, _samples.data() + N * 4, _shuffuleEngine);
 
             // printf("generated: %d -> %d\n", N, N * 4);
             N = N * 4;
@@ -425,6 +435,7 @@ private:
 private:
     uint32_t _seed = 1;
     pr::Xoshiro128StarStar _random;
+	std::mt19937 _shuffuleEngine;
     std::vector<glm::ivec2> _samples;
 };
 
